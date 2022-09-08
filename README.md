@@ -1,4 +1,9 @@
 ### Hi there 👋
+I'm hrsthrt74, or you can call me 74 for short.
+
+Maybe I'm not a developer, but I'm studying about it and maybe I'll create something one day.
+
+I'm not very good in English, so I'm sorry if my words confuse you. :(
 
 <!--
 **hrsthrt74/hrsthrt74** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
