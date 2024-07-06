@@ -1,7 +1,7 @@
 ### Hi there 👋
 I'm hrsthrt74, or you can call me 74 for short.
 
-Currently learning Java. (Just begining👀)
+Currently learning Java. (Just beginning👀)
 
 I'm not very good in English, so I'm sorry if my words confuse you. :(
 
