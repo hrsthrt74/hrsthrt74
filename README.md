@@ -1,12 +1,4 @@
 ### Hi there 👋
-I'm hrsthrt74, or you can call me 74 for short.
-
-Currently learning Java. (Just beginning👀)
-
-I'm not very good in English, so I'm sorry if my words confuse you. :(
-
-----
-###### Renewed profile is coming s∞n
 
 <!--
 **hrsthrt74/hrsthrt74** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
