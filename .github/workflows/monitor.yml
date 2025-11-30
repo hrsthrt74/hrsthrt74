@@ -1,0 +1,60 @@
+name: Watchface Daily Check
+
+on:
+  schedule:
+    # 每天北京时间 9:00 (UTC 1:00) 运行
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 允许手动点按钮运行
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Libs
+        run: pip install requests
+
+      - name: Run Script
+        env:
+          # 在这里定义 Python 脚本里用到的 os.environ
+          # 如果你要改监测的设备，改这里就行，不用动 Python 代码
+          TARGET_TYPES: 'p65,o66,n67' 
+        run: python monitor.py
+
+      - name: Check File
+        id: check
+        run: |
+          if [ -f "email_body.html" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Email
+        if: steps.check.outputs.exists == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          # SMTP 配置
+          server_address: smtp.qq.com
+          server_port: 465
+          secure: true
+          
+          # 认证信息 (从 Secrets 读取)
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          
+          # 收发件人 (从 Secrets 读取，彻底隐藏你的邮箱)
+          # 注意：MAIL_TO 需要你在 Secrets 里设置好
+          to: ${{ secrets.MAIL_TO }}
+          from: Watchface Bot <${{ secrets.MAIL_USERNAME }}>
+          
+          subject: ⌚ 小米手环表盘日报
+          html_body: file://email_body.html
+          ignore_cert: true
