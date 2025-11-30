@@ -2,58 +2,101 @@ import requests
 import os
 import datetime
 
-# API 地址
+# --- 配置字典 ---
+
+# 1. 设备代号与实际名称的映射 (Req 2)
+DEVICE_NAMES = {
+    "p65": "REDMI Watch 6",
+    "o66": "Xiaomi Band 10",
+    "n67": "Xiaomi Band 9 Pro",
+}
+
+# 2. 设备屏幕比例映射 (Req 3)
+# 格式: (宽度 W, 高度 H)
+DEVICE_DIMENSIONS = {
+    "p65": (432, 514),
+    "o66": (212, 520),
+    "n67": (336, 480),
+}
+
+# 3. 邮件中图片显示的固定宽度 (单位: px)
+DISPLAY_WIDTH = 80 
+# --- 结束配置 ---
+
+
+# 配置 API URL
 URL = "https://www.mibandtool.club:9073/watchface/listbytag/0/1/20/9999"
 
-# 从环境变量获取设备列表。如果 YAML 里没传，就默认用这三个。
+# 从环境变量获取需要监控的设备列表
 TARGET_TYPES_STR = os.environ.get("TARGET_TYPES", "p65,o66,n67")
 TARGET_TYPES = [t.strip() for t in TARGET_TYPES_STR.split(",") if t.strip()]
 
 def fetch_data(device_type):
+    """
+    抓取指定设备类型的数据
+    """
     headers = {
-        'type': device_type, # 必填 header
+        'type': device_type,
         'User-Agent': 'Mozilla/5.0'
     }
     try:
-        # print(f"正在抓取: {device_type}") # 调试用，GitHub Actions 日志里能看到
         response = requests.get(URL, headers=headers, timeout=15)
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f"[{device_type}] 抓取失败: {e}")
+        print(f"[{device_type}] 请求失败: {e}")
         return None
 
 def format_ts(ts):
     if not ts: return "N/A"
     return datetime.datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d %H:%M')
 
+def get_image_dimensions(device_type):
+    """
+    根据设备代号计算图片在邮件中的显示高度
+    """
+    w, h = DEVICE_DIMENSIONS.get(device_type, (1, 1)) # 如果找不到，默认 1:1
+    # 根据比例，以固定宽度计算高度
+    display_height = int(DISPLAY_WIDTH * h / w) 
+    return f"width: {DISPLAY_WIDTH}px; height: {display_height}px;"
+
+
 def generate_html(all_data):
-    # 邮件样式 CSS
+    # --- 样式美化 (Req 1) ---
     css = """
     <style>
-        body { font-family: -apple-system, sans-serif; color: #333; max-width: 600px; margin: 0 auto; }
-        .card { border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; align-items: flex-start; }
-        .cover { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; margin-right: 15px; background: #f0f0f0; }
+        body { font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; color: #333; max-width: 650px; margin: 0 auto; background-color: #f4f7f6; padding: 20px;}
+        .container { background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 20px; }
+        .device-header { background: #e8f0ff; color: #004d99; padding: 10px 15px; border-radius: 8px; margin: 25px 0 15px 0; font-size: 18px; font-weight: bold; border-left: 5px solid #007bff; }
+        .card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; align-items: flex-start; transition: background-color 0.3s;}
+        .card:last-child { border-bottom: none; }
+        .cover { object-fit: cover; border-radius: 4px; margin-right: 20px; background-color: #f0f0f0; border: 1px solid #ddd; }
         .content { flex: 1; }
-        .title { font-size: 16px; font-weight: bold; margin: 0 0 5px 0; color: #2c3e50; }
-        .meta { font-size: 12px; color: #666; line-height: 1.5; }
-        .badge { display: inline-block; padding: 2px 6px; background: #eef2f5; color: #555; border-radius: 4px; font-size: 10px; margin-right: 5px;}
-        .stat { color: #e67e22; font-weight: bold; }
-        .device-header { background: #f8f9fa; padding: 8px 10px; border-left: 4px solid #0366d6; margin: 20px 0 10px 0; font-weight: bold; }
+        .title { font-size: 16px; font-weight: 600; margin: 0 0 5px 0; color: #333; }
+        .meta { font-size: 13px; color: #666; line-height: 1.6; }
+        .stat-badge { display: inline-block; padding: 3px 8px; background: #eaf8f4; color: #00a680; border-radius: 12px; font-weight: bold; font-size: 11px; margin-right: 10px;}
+        .signature { text-align: center; font-size: 11px; color: #a0a0a0; margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; }
     </style>
     """
     
-    html = f"<html><head>{css}</head><body>"
-    html += f"<h3>⌚ 表盘上新监控 ({datetime.datetime.now().strftime('%m-%d')})</h3>"
+    html = f"<html><head>{css}</head><body><div class='container'>"
+    html += f"<h2 style='text-align:center; color: #34495e; margin-bottom: 25px;'>⌚ 表盘上新监控日报 ({datetime.datetime.now().strftime('%Y-%m-%d')})</h2>"
 
     has_content = False
 
     for dtype, items in all_data.items():
         if not items:
-            continue # 如果这个设备没数据，就不显示这一段
+            continue
         
         has_content = True
-        html += f"<div class='device-header'>📱 设备型号: {dtype}</div>"
+        
+        # Req 2: 使用实际设备名称
+        device_name = DEVICE_NAMES.get(dtype, dtype) 
+        
+        # Req 3: 获取图片的动态尺寸
+        img_style = get_image_dimensions(dtype)
+
+        html += f"<div class='device-header'>📱 {device_name} (代号: {dtype})</div>"
         
         for item in items:
             name = item.get('name', 'Unknown')
@@ -62,25 +105,37 @@ def generate_html(all_data):
             dl = item.get('downloadTimes', 0)
             views = item.get('views', 0)
             time_str = format_ts(item.get('updatedAt'))
-
+            
+            # 使用新的卡片布局
             html += f"""
             <div class="card">
-                <img src="{preview}" class="cover" alt="preview">
+                <img src="{preview}" class="cover" style="{img_style}" alt="{name}">
                 <div class="content">
-                    <div class="title">{name}</div>
+                    <p class="title">{name}</p>
                     <div class="meta">
-                        <span class="badge">作者: {nick}</span>
-                        <span class="badge">更新: {time_str}</span>
-                        <br>
-                        🔥 下载: <span class="stat">{dl}</span> | 浏览: {views}
+                        <span class="stat-badge">作者: {nick}</span>
+                        <span class="stat-badge" style="background: #fff0e6; color: #e67e22;">更新: {time_str}</span>
+                        <p style="margin: 5px 0 0 0;">
+                            📥 下载: <strong style="color: #007bff;">{dl}</strong> | 👀 浏览: <strong style="color: #007bff;">{views}</strong>
+                        </p>
                     </div>
                 </div>
             </div>
             """
             
-    html += "<p style='text-align:center; font-size:10px; color:#999;'>GitHub Actions 自动发送</p></body></html>"
+    # Req 4: 署名
+    html += """
+        </div>
+        <p class="signature">
+            Powered by GitHub Actions | 🤖 报告生成者：Gemini
+        </p>
+    </body>
+    </html>
+    """
     return html if has_content else None
 
+
+# --- 保持 main 函数和执行逻辑不变 ---
 def main():
     results = {}
     for dtype in TARGET_TYPES:
@@ -90,18 +145,13 @@ def main():
         else:
             results[dtype] = []
 
-    # 生成 HTML
     html_content = generate_html(results)
 
     if html_content:
-        # 写入文件供 Actions 发送
         with open("email_body.html", "w", encoding="utf-8") as f:
             f.write(html_content)
-        print("✅ 发现数据，报告已生成。")
+        print("✅ 报告已生成。")
     else:
-        print("⚠️ 所有设备均无数据，不生成报告。")
-        # 如果你想没数据时不发邮件，可以删掉 email_body.html 或者在 Actions 里判断
-        # 这里为了演示，我们还是生成一个空提示
         with open("email_body.html", "w", encoding="utf-8") as f:
             f.write("<h3>今日无新表盘数据</h3>")
 
