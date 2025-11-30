@@ -21,11 +21,11 @@ DEVICE_DIMENSIONS = {
 # 3. 邮件中图片显示的固定宽度 (单位: px)
 DISPLAY_WIDTH = 80 
 
-# 4. 设备圆角映射 (Req 1)
-DEVICE_CORNERS = {
-    "p65": "102px",  # REDMI Watch 6
-    "o66": "223px",  # Xiaomi Band 10
-    "n67": "48px",   # Xiaomi Band 9 Pro
+# 4. 设备原始圆角数据 R (Req 1: 存储原始像素值)
+DEVICE_CORNERS_RAW = {
+    "p65": 102,  
+    "o66": 223,  
+    "n67": 48,   
 }
 # --- 结束配置 ---
 
@@ -59,16 +59,26 @@ def format_ts(ts):
 
 def get_image_style(device_type):
     """
-    根据设备代号计算图片在邮件中的显示样式 (包含尺寸和圆角)
+    根据设备代号计算图片的显示样式 (包含尺寸和比例圆角)
     """
     # 尺寸计算
-    w, h = DEVICE_DIMENSIONS.get(device_type, (1, 1))
-    display_height = int(DISPLAY_WIDTH * h / w) 
+    w_raw, h_raw = DEVICE_DIMENSIONS.get(device_type, (1, 1))
+    display_height = int(DISPLAY_WIDTH * h_raw / w_raw) 
     size_style = f"width: {DISPLAY_WIDTH}px; height: {display_height}px;"
     
-    # 圆角获取
-    corner_radius = DEVICE_CORNERS.get(device_type, "4px")
-    corner_style = f"border-radius: {corner_radius};"
+    # --- 圆角比例计算 (核心修复) ---
+    r_raw = DEVICE_CORNERS_RAW.get(device_type, 4) # 原始圆角 R
+    
+    # 使用宽度 W 作为基准计算比例: Ratio = R / W_raw
+    if w_raw > 0:
+        radius_ratio = r_raw / w_raw
+        # 将比例应用于显示宽度: New_Radius = Ratio * DISPLAY_WIDTH
+        new_radius_px = radius_ratio * DISPLAY_WIDTH
+        # 保留两位小数，确保平滑
+        corner_style = f"border-radius: {new_radius_px:.2f}px;" 
+    else:
+        # 兜底
+        corner_style = "border-radius: 4px;"
 
     return f"{size_style} {corner_style}"
 
@@ -77,14 +87,26 @@ def generate_html(all_data):
     # --- 样式美化和边距优化 (Req 2) ---
     css = """
     <style>
-        /* 增加最大宽度到 800px，减少左右 body padding */
-        body { font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; padding: 10px 5px;} 
-        /* 减少容器内边距 */
-        .container { background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 10px 15px; } 
+        /* 增加最大宽度到 90%，减少左右 body padding */
+        body { 
+            font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; 
+            color: #333; 
+            max-width: 90%; /* 适应不同客户端宽度 */
+            margin: 0 auto; 
+            background-color: #f4f7f6; 
+            padding: 10px; /* 减少边距 */
+        } 
+        /* 容器内边距和投影 */
+        .container { 
+            background-color: #ffffff; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            padding: 10px; /* 进一步减少容器内边距 */
+        } 
         .device-header { background: #e8f0ff; color: #004d99; padding: 10px 15px; border-radius: 8px; margin: 25px 0 15px 0; font-size: 18px; font-weight: bold; border-left: 5px solid #007bff; }
         .card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; align-items: flex-start; transition: background-color 0.3s;}
         .card:last-child { border-bottom: none; }
-        .cover { object-fit: cover; margin-right: 20px; background-color: #f0f0f0; border: 1px solid #ddd; } /* border-radius 将在行内 style 覆盖 */
+        .cover { object-fit: cover; margin-right: 20px; background-color: #f0f0f0; border: 1px solid #ddd; } /* border-radius 已在行内 style 覆盖 */
         .content { flex: 1; }
         .title { font-size: 16px; font-weight: 600; margin: 0 0 5px 0; color: #333; }
         .meta { font-size: 13px; color: #666; line-height: 1.6; }
@@ -104,10 +126,9 @@ def generate_html(all_data):
         
         has_content = True
         
-        # 使用实际设备名称
         device_name = DEVICE_NAMES.get(dtype, dtype) 
         
-        # 获取图片的动态样式 (尺寸 + 圆角)
+        # 获取图片的动态样式 (尺寸 + 比例圆角)
         image_style = get_image_style(dtype)
 
         html += f"<div class='device-header'>📱 {device_name} (代号: {dtype})</div>"
