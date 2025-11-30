@@ -4,15 +4,14 @@ import datetime
 
 # --- 配置字典 ---
 
-# 1. 设备代号与实际名称的映射 (Req 2)
+# 1. 设备代号与实际名称的映射
 DEVICE_NAMES = {
     "p65": "REDMI Watch 6",
     "o66": "Xiaomi Band 10",
     "n67": "Xiaomi Band 9 Pro",
 }
 
-# 2. 设备屏幕比例映射 (Req 3)
-# 格式: (宽度 W, 高度 H)
+# 2. 设备屏幕比例映射 (宽度 W, 高度 H)
 DEVICE_DIMENSIONS = {
     "p65": (432, 514),
     "o66": (212, 520),
@@ -21,6 +20,13 @@ DEVICE_DIMENSIONS = {
 
 # 3. 邮件中图片显示的固定宽度 (单位: px)
 DISPLAY_WIDTH = 80 
+
+# 4. 设备圆角映射 (Req 1)
+DEVICE_CORNERS = {
+    "p65": "102px",  # REDMI Watch 6
+    "o66": "223px",  # Xiaomi Band 10
+    "n67": "48px",   # Xiaomi Band 9 Pro
+}
 # --- 结束配置 ---
 
 
@@ -51,26 +57,34 @@ def format_ts(ts):
     if not ts: return "N/A"
     return datetime.datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d %H:%M')
 
-def get_image_dimensions(device_type):
+def get_image_style(device_type):
     """
-    根据设备代号计算图片在邮件中的显示高度
+    根据设备代号计算图片在邮件中的显示样式 (包含尺寸和圆角)
     """
-    w, h = DEVICE_DIMENSIONS.get(device_type, (1, 1)) # 如果找不到，默认 1:1
-    # 根据比例，以固定宽度计算高度
+    # 尺寸计算
+    w, h = DEVICE_DIMENSIONS.get(device_type, (1, 1))
     display_height = int(DISPLAY_WIDTH * h / w) 
-    return f"width: {DISPLAY_WIDTH}px; height: {display_height}px;"
+    size_style = f"width: {DISPLAY_WIDTH}px; height: {display_height}px;"
+    
+    # 圆角获取
+    corner_radius = DEVICE_CORNERS.get(device_type, "4px")
+    corner_style = f"border-radius: {corner_radius};"
+
+    return f"{size_style} {corner_style}"
 
 
 def generate_html(all_data):
-    # --- 样式美化 (Req 1) ---
+    # --- 样式美化和边距优化 (Req 2) ---
     css = """
     <style>
-        body { font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; color: #333; max-width: 650px; margin: 0 auto; background-color: #f4f7f6; padding: 20px;}
-        .container { background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 20px; }
+        /* 增加最大宽度到 800px，减少左右 body padding */
+        body { font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; padding: 10px 5px;} 
+        /* 减少容器内边距 */
+        .container { background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 10px 15px; } 
         .device-header { background: #e8f0ff; color: #004d99; padding: 10px 15px; border-radius: 8px; margin: 25px 0 15px 0; font-size: 18px; font-weight: bold; border-left: 5px solid #007bff; }
         .card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; align-items: flex-start; transition: background-color 0.3s;}
         .card:last-child { border-bottom: none; }
-        .cover { object-fit: cover; border-radius: 4px; margin-right: 20px; background-color: #f0f0f0; border: 1px solid #ddd; }
+        .cover { object-fit: cover; margin-right: 20px; background-color: #f0f0f0; border: 1px solid #ddd; } /* border-radius 将在行内 style 覆盖 */
         .content { flex: 1; }
         .title { font-size: 16px; font-weight: 600; margin: 0 0 5px 0; color: #333; }
         .meta { font-size: 13px; color: #666; line-height: 1.6; }
@@ -90,11 +104,11 @@ def generate_html(all_data):
         
         has_content = True
         
-        # Req 2: 使用实际设备名称
+        # 使用实际设备名称
         device_name = DEVICE_NAMES.get(dtype, dtype) 
         
-        # Req 3: 获取图片的动态尺寸
-        img_style = get_image_dimensions(dtype)
+        # 获取图片的动态样式 (尺寸 + 圆角)
+        image_style = get_image_style(dtype)
 
         html += f"<div class='device-header'>📱 {device_name} (代号: {dtype})</div>"
         
@@ -109,7 +123,7 @@ def generate_html(all_data):
             # 使用新的卡片布局
             html += f"""
             <div class="card">
-                <img src="{preview}" class="cover" style="{img_style}" alt="{name}">
+                <img src="{preview}" class="cover" style="{image_style}" alt="{name}">
                 <div class="content">
                     <p class="title">{name}</p>
                     <div class="meta">
@@ -123,7 +137,7 @@ def generate_html(all_data):
             </div>
             """
             
-    # Req 4: 署名
+    # 署名
     html += """
         </div>
         <p class="signature">
