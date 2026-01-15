@@ -1,9 +1,9 @@
 name: Watchface Daily Check
 
 on:
-  schedule:
+  # schedule:
     # 每天北京时间 12:20 (UTC 4:20) 运行
-    - cron: '20 4 * * *'
+    # - cron: '20 4 * * *'
   workflow_dispatch: # 允许手动点按钮运行
 
 jobs:
