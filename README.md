@@ -1,5 +1,12 @@
-RENEWED Profile coming soooon~~~~~ 
-[My blog](https://hrsthrt74.github.io/)
+![avatar](/bg.webp)
+
+I'm **hrsthrt74**, a student.
+
+Design enthusiast. Vibe coding enjoyer.
+
+Contact me: `hrsthrt74✨qq.com`
+
+My blog: **[Blog 74th](https://hrsthrt74.github.io/)**
 
 <!--
 **hrsthrt74/hrsthrt74** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
