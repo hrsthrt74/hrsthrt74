@@ -8,6 +8,8 @@ Contact me: `hrsthrt74✨qq.com`
 
 My blog: **[Blog 74th](https://hrsthrt74.github.io/)**
 
+[![hrsthrt74's GitHub stats](https://github-stats-extended.vercel.app/api?username=hrsthrt74)](https://github.com/stats-organization/github-stats-extended)
+
 <!--
 **hrsthrt74/hrsthrt74** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
